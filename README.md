@@ -23,13 +23,17 @@ across turns instead of making progress (above: a GPT-4.1 teacher vs. an SFT-dis
 ProD detects this in the student's own rollouts and penalizes it with an adaptive margin built from the
 student–teacher stagnation gap and answer correctness:
 
-```
-L = -log σ( β/|τ| log p(τ|x) − β/|τ̃| log p(τ̃|x) − f(τ̃, τ) ) − λ/|τ| log p(τ|x)
-f(τ̃, τ) = c0 · ( α · max(0, S(τ̃) − S(τ)) + (1 − α) · 1[Ans(τ̃) ≠ Ans(τ)] )
+```math
+\mathcal{L}(\theta) = -\log \sigma\!\left( \frac{\beta}{|\tau|} \log p_\theta(\tau \mid x) - \frac{\beta}{|\tilde{\tau}|} \log p_\theta(\tilde{\tau} \mid x) - f(\tilde{\tau}, \tau) \right) - \frac{\lambda}{|\tau|} \log p_\theta(\tau \mid x)
 ```
 
-τ is a teacher (GPT-4.1) trajectory, τ̃ the SFT student's rollout on the same question, and S the
-average turn-level stagnation (max ROUGE-L of each thought + action against all earlier turns).
+```math
+f(\tilde{\tau}, \tau) = c_0 \Big( \alpha \max\{0,\, \Delta S(\tilde{\tau}, \tau)\} + (1 - \alpha)\, \mathbb{I}_{\text{Ans}(\tilde{\tau}) \neq \text{Ans}(\tau)} \Big)
+```
+
+Here $\tau$ is a teacher (GPT-4.1) trajectory, $\tilde{\tau}$ the SFT student's rollout on the same
+question, and $\Delta S$ the gap between their average turn-level stagnation (the max ROUGE-L of each
+thought + action against all earlier turns).
 Across Qwen3, Llama3 and Gemma3 students (0.6B–8B), ProD substantially reduces stagnation, moving the
 students toward the teacher, while improving accuracy and cutting interaction turns (−11.6%) and tokens
 (−20.7%) on average:
