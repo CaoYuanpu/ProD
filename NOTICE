@@ -1,0 +1,23 @@
+ProD: Progress-Aware Distillation for Mitigating Stagnation in Small Language Model Agents
+Copyright 2026 the ProD authors. Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository includes or adapts code from the following projects, all licensed under Apache-2.0:
+
+* smolagents (https://github.com/huggingface/smolagents), Copyright The HuggingFace Team.
+  src/smolagents/ is a modified copy of commit ed47801 (v1.22.0.dev0). Main changes: a compact
+  system prompt for distilled students, the task instruction argument, an extra stop sequence,
+  executor time-out / output caps, LoRA + Qwen3 no-thinking support in VLLMModel, removal of
+  tool-call messages from model inputs, and the WikipediaRetrieverTool.
+
+* agent-distillation (https://github.com/Nardien/agent-distillation), Kang et al., 2025.
+  The CodeAct agent-distillation setup, the WikipediaRetrieverTool, the retriever server and the
+  multi-turn completion-only data collator (src/prod/collators.py) are adapted from it.
+
+* Search-R1 (https://github.com/PeterGriffinJin/Search-R1), Jin et al., 2025.
+  retriever/retriever_server.py and retriever/download.py originate from it (via agent-distillation).
+
+* TRL (https://github.com/huggingface/trl), Copyright The HuggingFace Team.
+  The ProD trainer extends trl.SFTTrainer and follows the SimPO loss implementation pattern.
+
+Datasets redistributed under data/ are subsets of MATH (MIT), HotpotQA (CC BY-SA 4.0),
+2WikiMultiHopQA (Apache-2.0) and Omni-MATH (Apache-2.0); see their original licenses.
