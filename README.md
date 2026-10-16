@@ -57,12 +57,12 @@ HotpotQA / 2WikiMultiHopQA need the local Wikipedia retriever: see [retriever/RE
 
 ## Data
 
-`data/` holds the question splits used in the paper:
+`data/<task>/{train,eval}/` holds the question splits used in the paper:
 
 | task | train | in-domain eval | out-of-domain eval |
 |---|---|---|---|
-| `math` | MATH, 3,010 | MATH val + test (770) | Omni-MATH L1–3 (500), L4–5 (500) |
-| `hotpotqa` | HotpotQA, 3,000 | HotpotQA val (500) | 2WikiMultiHopQA (500) |
+| `math` | MATH (3,010) | MATH (770) | Omni-MATH L1–3 (500), L4–5 (500) |
+| `hotpotqa` | HotpotQA (3,000) | HotpotQA (500) | 2WikiMultiHopQA (500) |
 
 `data/release/` holds the GPT-4.1 teacher trajectories on both training sets (with judgments and
 stagnation scores, plus the SFT set built from them) and the ProD pair data of the Qwen3-1.7B / 4B SFT
@@ -86,31 +86,68 @@ bash scripts/run_qwen3.sh math Qwen3-1.7B
 training. Accuracy and efficiency (avg turns / tokens) are printed by `prod.evaluate`. Agent rollouts
 use vLLM with greedy decoding, which is not bit-reproducible across runs with LoRA.
 
-### Step by step
+## Step by step
 
-Every step reads and writes `outputs/<task>/{trajectories,evaluations,stagnation,data,ckpt}/...`.
+The scripts above chain the following steps. Every step reads and writes
+`outputs/<task>/{trajectories,evaluations,stagnation,data,ckpt}/`; the example below is MATH with
+Qwen3-1.7B. For `hotpotqa`, start the retriever first and pass `--gpu_memory_utilization 0.75` to
+`prod.rollout` so that vLLM leaves room for it.
 
 ```bash
-TASK=math; M=Qwen/Qwen3-1.7B
-python -m prod.train_sft --task $TASK --model $M --output_dir outputs/$TASK/ckpt/sft_Qwen3-1.7B   # 5 epochs, keep epoch 3
-SFT=outputs/$TASK/ckpt/sft_Qwen3-1.7B/checkpoint-261
-python -m prod.rollout     --task $TASK --split train --model $M --lora $SFT --tag sft_Qwen3-1.7B
-python -m prod.judge       --task $TASK --split train --tag sft_Qwen3-1.7B
-python -m prod.stagnation  --task $TASK --split train --tag sft_Qwen3-1.7B
-python -m prod.build_prod_data --task $TASK --student_tag sft_Qwen3-1.7B
-python -m prod.train_prod  --task $TASK --model $M --init_lora $SFT --lr 5e-6 --c0 0.5 \
-    --data outputs/$TASK/data/prod_sft_Qwen3-1.7B.json --output_dir outputs/$TASK/ckpt/prod_Qwen3-1.7B
-python -m prod.rollout     --task $TASK --split val --model $M --lora outputs/$TASK/ckpt/prod_Qwen3-1.7B/checkpoint-346 --tag prod_Qwen3-1.7B
-python -m prod.judge       --task $TASK --split val --tag prod_Qwen3-1.7B   # + test split / OOD sets
-python -m prod.evaluate    --task $TASK --tag prod_Qwen3-1.7B
+TASK=math MODEL=Qwen/Qwen3-1.7B NAME=Qwen3-1.7B
 ```
 
-**Iterative ProD** (Sec. 4.4): roll out the ProD student on the training set, rebuild the pairs with
-`--student_tag` set to it, and run `prod.train_prod` again with `--init_lora` pointing at it.
+**1. Teacher trajectories and the SFT set** (or `bash scripts/unpack_data.sh`)
 
-**Ablations** (Sec. 4.5): `--fixed_margin` gives *w/o AM*; `--fixed_margin --lambda_sft 0` gives
-*w/o SFT + AM*; `--alpha 1` / `--alpha 0` use only the stagnation gap / only correctness (Table 6).
-`prod.stagnation --metric semantic` computes the embedding-based score (`pip install -e .[semantic]`).
+```bash
+python -m prod.rollout    --task $TASK --split train --backend litellm --model gpt-4.1-2025-04-14 --tag gpt-4.1
+python -m prod.judge      --task $TASK --split train --tag gpt-4.1
+python -m prod.stagnation --task $TASK --split train --tag gpt-4.1
+python -m prod.build_sft_data --task $TASK                     # -> outputs/$TASK/data/sft_gpt-4.1.json
+```
+
+**2. SFT distillation** (5 epochs, one checkpoint per epoch; the epoch-3 checkpoint is used)
+
+```bash
+python -m prod.train_sft --task $TASK --model $MODEL --output_dir outputs/$TASK/ckpt/sft_$NAME
+SFT=outputs/$TASK/ckpt/sft_$NAME/checkpoint-261
+```
+
+**3. Student rollouts and ProD pairs** (released for Qwen3-1.7B / 4B)
+
+```bash
+python -m prod.rollout    --task $TASK --split train --model $MODEL --lora $SFT --tag sft_$NAME
+python -m prod.judge      --task $TASK --split train --tag sft_$NAME
+python -m prod.stagnation --task $TASK --split train --tag sft_$NAME
+python -m prod.build_prod_data --task $TASK --student_tag sft_$NAME   # -> outputs/$TASK/data/prod_sft_$NAME.json
+```
+
+**4. ProD training** (2-epoch schedule; lr / c0 from the table below)
+
+```bash
+python -m prod.train_prod --task $TASK --model $MODEL --init_lora $SFT --lr 5e-6 --c0 0.5 \
+    --data outputs/$TASK/data/prod_sft_$NAME.json --output_dir outputs/$TASK/ckpt/prod_$NAME
+PROD=outputs/$TASK/ckpt/prod_$NAME/checkpoint-346
+```
+
+**5. Evaluation** (eval sets: `math omnimath_easy omnimath_medium` or `hotpotqa 2wikimultihopqa`)
+
+```bash
+for DATASET in math omnimath_easy omnimath_medium; do
+  python -m prod.rollout --task $TASK --split eval --dataset $DATASET --model $MODEL --lora $PROD --tag prod_$NAME
+  python -m prod.judge   --task $TASK --split eval --dataset $DATASET --tag prod_$NAME
+done
+python -m prod.evaluate --task $TASK --tag prod_$NAME           # accuracy, avg turns, avg tokens
+```
+
+### Variants
+
+* **Iterative ProD** (Sec. 4.4): repeat steps 3–4 with the ProD student, i.e. roll it out on the training
+  set, rebuild the pairs with `--student_tag` set to it, and train again with `--init_lora` pointing at it.
+* **Ablations** (Sec. 4.5): `--fixed_margin` gives *w/o AM*; `--fixed_margin --lambda_sft 0` gives
+  *w/o SFT + AM*; `--alpha 1` / `--alpha 0` use only the stagnation gap / only correctness (Table 6).
+* **Semantic stagnation**: `prod.stagnation --metric semantic` (needs `pip install -e .[semantic]`);
+  pass `--metric semantic` to `prod.build_prod_data` to train with it.
 
 ## Hyperparameters
 

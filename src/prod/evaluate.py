@@ -3,7 +3,6 @@
     python -m prod.evaluate --task math --tag prod_Qwen3-1.7B
 
 Accuracy is the number of correct answers over the full set size (missing trajectories count as wrong).
-For MATH the in-domain set pools the val and test splits (770 problems).
 """
 
 import argparse
@@ -13,19 +12,18 @@ from .common import eval_path, load_json, read_examples, traj_path
 from .tasks import get_task
 
 
-def summarize(output_root, task, tag, parts):
+def summarize(output_root, task, tag, dataset, split="eval"):
     n, correct, steps, tokens = 0, 0, [], []
-    for split, dataset in parts:
-        for exp in read_examples(task, split, dataset):
-            n += 1
-            ev = eval_path(output_root, task, tag, split, dataset, exp["id"])
-            if os.path.exists(ev):
-                result = load_json(ev)
-                correct += int(result["score"] == 1)
-                steps.append(result["total_steps"])
-            tr = traj_path(output_root, task, tag, split, dataset, exp["id"])
-            if os.path.exists(tr):
-                tokens.append(load_json(tr)["token_usage"]["total_tokens"])
+    for exp in read_examples(task, split, dataset):
+        n += 1
+        ev = eval_path(output_root, task, tag, split, dataset, exp["id"])
+        if os.path.exists(ev):
+            result = load_json(ev)
+            correct += int(result["score"] == 1)
+            steps.append(result["total_steps"])
+        tr = traj_path(output_root, task, tag, split, dataset, exp["id"])
+        if os.path.exists(tr):
+            tokens.append(load_json(tr)["token_usage"]["total_tokens"])
     return {
         "n": n,
         "judged": len(steps),

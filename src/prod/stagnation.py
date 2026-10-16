@@ -73,7 +73,7 @@ def main(args):
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--task", required=True, choices=["math", "hotpotqa"])
-    p.add_argument("--split", required=True, choices=["train", "val", "test"])
+    p.add_argument("--split", required=True, choices=["train", "eval"])
     p.add_argument("--dataset", default=None)
     p.add_argument("--tag", required=True)
     p.add_argument("--metric", default="lexical", choices=["lexical", "semantic"])

@@ -22,16 +22,14 @@ EXTRA=()
 ckpt() { ls -d "$1"/checkpoint-* | sort -t- -k2 -n | sed -n "${2}p"; }
 
 evaluate() {  # tag lora
-  local TAG=$1 LORA=$2 SPLIT DATASET
-  mapfile -t SETS < <(python -c "
+  local TAG=$1 LORA=$2
+  mapfile -t DATASETS < <(python -c "
 from prod.tasks import get_task
-for parts in get_task('$TASK')['eval_sets'].values():
-    for split, dataset in parts: print(split, dataset)")
-  for SET in "${SETS[@]}"; do
-    read -r SPLIT DATASET <<< "$SET"
-    python -m prod.rollout --task "$TASK" --split "$SPLIT" --dataset "$DATASET" --model "$MODEL" --lora "$LORA" \
+print('\n'.join(get_task('$TASK')['eval_sets'].values()))")
+  for DATASET in "${DATASETS[@]}"; do
+    python -m prod.rollout --task "$TASK" --split eval --dataset "$DATASET" --model "$MODEL" --lora "$LORA" \
       --tag "$TAG" --output_root "$OUT" "${EXTRA[@]}" < /dev/null
-    python -m prod.judge --task "$TASK" --split "$SPLIT" --dataset "$DATASET" --tag "$TAG" --output_root "$OUT"
+    python -m prod.judge --task "$TASK" --split eval --dataset "$DATASET" --tag "$TAG" --output_root "$OUT"
   done
   python -m prod.evaluate --task "$TASK" --tag "$TAG" --output_root "$OUT"
 }

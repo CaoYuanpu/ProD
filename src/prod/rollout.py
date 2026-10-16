@@ -4,7 +4,7 @@ Examples:
     # teacher (OpenAI API, needs OPENAI_API_KEY)
     python -m prod.rollout --task math --split train --backend litellm --model gpt-4.1-2025-04-14 --tag gpt-4.1
     # distilled student (vLLM + LoRA)
-    python -m prod.rollout --task math --split val --model Qwen/Qwen3-1.7B --lora outputs/math/ckpt/sft_Qwen3-1.7B/checkpoint-261 --tag sft_Qwen3-1.7B
+    python -m prod.rollout --task math --split eval --model Qwen/Qwen3-1.7B --lora outputs/math/ckpt/sft_Qwen3-1.7B/checkpoint-261 --tag sft_Qwen3-1.7B
 """
 
 import argparse
@@ -97,7 +97,7 @@ def main(args):
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--task", required=True, choices=["math", "hotpotqa"])
-    p.add_argument("--split", required=True, choices=["train", "val", "test"])
+    p.add_argument("--split", required=True, choices=["train", "eval"])
     p.add_argument("--dataset", default=None, help="dataset within the split (default: the task's main dataset)")
     p.add_argument("--backend", default="vllm", choices=["vllm", "litellm"])
     p.add_argument("--model", required=True, help="HF model id / local path (vllm) or API model id (litellm)")

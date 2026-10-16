@@ -28,18 +28,17 @@ TASKS = {
         "judge": "math",
         "datasets": {
             "train": {"math": "math/train/math.json"},
-            "val": {"math": "math/val/math.json"},
-            "test": {
-                "math": "math/test/math.json",
-                "omnimath_easy": "math/test/omnimath_easy.json",  # Omni-MATH levels 1-3
-                "omnimath_medium": "math/test/omnimath_medium.json",  # Omni-MATH levels 4-5
+            "eval": {
+                "math": "math/eval/math.json",
+                "omnimath_easy": "math/eval/omnimath_easy.json",  # Omni-MATH levels 1-3
+                "omnimath_medium": "math/eval/omnimath_medium.json",  # Omni-MATH levels 4-5
             },
         },
-        # name -> list of (split, dataset); accuracy is pooled over all listed sets
+        # reported name -> dataset of the eval split
         "eval_sets": {
-            "MATH": [("val", "math"), ("test", "math")],
-            "Omni-MATH (L1-3)": [("test", "omnimath_easy")],
-            "Omni-MATH (L4-5)": [("test", "omnimath_medium")],
+            "MATH": "math",
+            "Omni-MATH (L1-3)": "omnimath_easy",
+            "Omni-MATH (L4-5)": "omnimath_medium",
         },
     },
     "hotpotqa": {
@@ -51,12 +50,14 @@ TASKS = {
         "judge": "factual",
         "datasets": {
             "train": {"hotpotqa": "hotpotqa/train/hotpotqa.json"},
-            "val": {"hotpotqa": "hotpotqa/val/hotpotqa.json"},
-            "test": {"2wikimultihopqa": "hotpotqa/test/2wikimultihopqa.json"},
+            "eval": {
+                "hotpotqa": "hotpotqa/eval/hotpotqa.json",
+                "2wikimultihopqa": "hotpotqa/eval/2wikimultihopqa.json",
+            },
         },
         "eval_sets": {
-            "HotpotQA": [("val", "hotpotqa")],
-            "2WikiMultiHopQA": [("test", "2wikimultihopqa")],
+            "HotpotQA": "hotpotqa",
+            "2WikiMultiHopQA": "2wikimultihopqa",
         },
     },
 }
